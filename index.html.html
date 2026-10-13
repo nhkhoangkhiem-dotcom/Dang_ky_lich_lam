@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Lịch Làm Việc Tuần - The Speakar</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    /* ===== Tương thích Safari / iOS / Zalo ===== */
+    html { -webkit-text-size-adjust: 100%; }
+    button, input { -webkit-appearance: none; appearance: none; -webkit-tap-highlight-color: transparent; }
+    input[type="time"] { min-height: 34px; }
+    /* iOS Safari tự phóng to trang khi chạm vào ô nhập có chữ < 16px -> ép 16px trên điện thoại */
+    @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
+    /* Thanh công cụ dưới cùng không bị thanh Home của iPhone che */
+    .safe-bottom { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)); }
+    #previewModal > div, #tutorialModal > div, #saveHelpModal > div { max-height: 90vh; max-height: 90dvh; -webkit-overflow-scrolling: touch; }
+    /* Reset line-height & flex alignment for html2canvas stability */
+    input, button, span, div {
+      box-sizing: border-box;
+    }
+    .btn-shift {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.2;
+      vertical-align: middle;
+    }
+    .day-header-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen pb-28">
+
+  <!-- Header -->
+  <header class="bg-indigo-700 text-white shadow-md">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-12 h-12 bg-white text-indigo-700 font-bold rounded-full flex items-center justify-center text-xl shadow">
+          TS
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">Lịch làm việc tuần</h1>
+          <p class="text-indigo-200 text-sm">The Speakar · Bảng phân ca cá nhân</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+      <button id="helpBtn" onclick="openTutorial()" class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg border border-indigo-300/40 text-sm font-semibold transition" title="Xem lại hướng dẫn sử dụng">
+        <i class="fa-solid fa-circle-question"></i> <span>Hướng dẫn</span>
+      </button>
+      <div class="flex items-center space-x-2 bg-indigo-800/60 backdrop-blur px-3 py-1.5 rounded-lg border border-indigo-500/30 text-sm">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="saveStatus">Đã lưu ✓</span>
+      </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main id="scheduleContainer" class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- User & Week Info Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Input Name -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1 text-center">Họ và tên nhân viên <span class="text-rose-500">*</span></label>
+          <div class="relative" id="employeeNameWrapper">
+            <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input 
+              type="text" 
+              id="employeeName" 
+              placeholder="Nhập họ và tên..." 
+              class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition font-semibold text-slate-800 text-center text-sm"
+            />
+          </div>
+        </div>
+
+        <!-- Week Selector -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1 text-center">Chọn tuần</label>
+          <div class="flex items-center space-x-2">
+            <button id="prevWeek" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 transition" title="Tuần trước">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div id="currentWeekDisplay" class="flex-1 text-center font-bold text-slate-700 bg-slate-50 py-2 border border-slate-200 rounded-lg text-sm flex items-center justify-center">
+              Tuần --
+            </div>
+            <button id="nextWeek" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 transition" title="Tuần sau">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+            <button id="todayWeek" onclick="resetToCurrentWeek()" class="px-3 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-100 font-semibold text-xs transition flex items-center justify-center gap-1 whitespace-nowrap shadow-sm" title="Về tuần hiện tại">
+              <i class="fa-solid fa-calendar-day"></i>
+              <span>Tuần hiện tại</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="pt-3 border-t border-slate-100 space-y-2 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="text-slate-500 font-medium">Điền nhanh T2 – T7 (Chủ nhật nghỉ):</span>
+          <div class="flex flex-wrap gap-1.5">
+            <button onclick="applyQuickFill('sang')" class="btn-shift px-2.5 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded hover:bg-amber-100 transition font-medium">Sáng</button>
+            <button onclick="applyQuickFill('chieu')" class="btn-shift px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 transition font-medium">Chiều</button>
+            <button onclick="applyQuickFill('toi')" class="btn-shift px-2.5 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded hover:bg-purple-100 transition font-medium">Tối</button>
+            <button onclick="applyQuickFill('cangay')" class="btn-shift px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100 transition font-medium">Cả ngày</button>
+            <button onclick="applyQuickFill('nghi')" class="btn-shift px-2.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded hover:bg-rose-100 transition font-medium">Nghỉ cả tuần</button>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-1">
+          <button onclick="copyPreviousWeekSchedule()" class="btn-shift px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-semibold transition gap-1.5 shadow-sm">
+            <i class="fa-solid fa-copy"></i>
+            <span>Giống tuần trước</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shift Preset Badges Guide -->
+    <div class="bg-indigo-50/60 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-900 flex flex-wrap items-center gap-3 justify-center text-center">
+      <span class="font-semibold text-indigo-700"><i class="fa-solid fa-circle-info mr-1"></i>Các ca cố định:</span>
+      <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-medium">Sáng: 07:30–11:30</span>
+      <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-medium">Chiều: 13:00–17:00</span>
+      <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-medium">Tối: 17:30–21:30</span>
+      <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">Cả ngày: 07:30–17:00</span>
+      <span class="inline-flex items-center gap-1 bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded font-medium"><i class="fa-solid fa-pen-to-square"></i>Tự nhập/Sửa giờ trực tiếp</span>
+    </div>
+
+    <!-- Weekly Days Grid -->
+    <div id="daysGrid" class="space-y-3">
+      <!-- Days populated by JS -->
+    </div>
+
+    <!-- Summary Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wide mb-3 flex items-center justify-center gap-2 text-center">
+        <i class="fa-solid fa-chart-pie text-indigo-600"></i> Tổng kết tuần làm việc
+      </h3>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center" id="summaryStats">
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col justify-center items-center">
+          <div class="text-xs text-slate-500">Tổng ca đăng ký</div>
+          <div id="statTotalShifts" class="text-xl font-bold text-indigo-600 mt-1">0</div>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col justify-center items-center">
+          <div class="text-xs text-slate-500">Số ngày làm</div>
+          <div id="statWorkDays" class="text-xl font-bold text-emerald-600 mt-1">0/7</div>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col justify-center items-center">
+          <div class="text-xs text-slate-500">Số ngày nghỉ</div>
+          <div id="statOffDays" class="text-xl font-bold text-rose-600 mt-1">0/7</div>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col justify-center items-center">
+          <div class="text-xs text-slate-500">Giờ làm dự kiến</div>
+          <div id="statTotalHours" class="text-xl font-bold text-amber-600 mt-1">0h</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Bottom Floating Toolbar -->
+  <div class="safe-bottom fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg px-3 pt-3 z-30">
+    <div class="max-w-4xl mx-auto flex items-center justify-between gap-3">
+      <button onclick="clearCurrentWeek()" class="px-3 py-2 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-100 text-sm font-medium transition">
+        <i class="fa-solid fa-rotate-left mr-1"></i> Xóa tuần này
+      </button>
+
+      <button onclick="previewAndExportImage()" class="flex-1 max-w-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-lg shadow flex items-center justify-center gap-2 transition text-sm">
+        <i class="fa-solid fa-camera"></i> Xem trước & Chụp ảnh
+      </button>
+    </div>
+  </div>
+
+  <!-- Save Help Modal (iPhone / Zalo không tải được file trực tiếp) -->
+  <div id="saveHelpModal" class="fixed inset-0 bg-slate-900/80 z-[70] flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden">
+      <div class="bg-emerald-600 px-5 py-3 text-white font-bold text-sm flex items-center gap-2">
+        <i class="fa-solid fa-hand-pointer"></i> <span id="saveHelpTitle">Lưu ảnh về máy</span>
+      </div>
+      <div class="p-4 overflow-y-auto flex-1 bg-slate-100 flex flex-col items-center gap-3">
+        <p id="saveHelpText" class="text-sm text-slate-700 text-center leading-relaxed"></p>
+        <img id="saveHelpImage" src="" alt="Lịch làm việc" class="max-w-full h-auto rounded border border-slate-300 bg-white" style="-webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto;" />
+      </div>
+      <div class="px-5 py-3 border-t border-slate-200 flex justify-end">
+        <button onclick="closeSaveHelp()" class="px-5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">Đã lưu xong</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tutorial Modal -->
+  <div id="tutorialModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+      <div class="bg-indigo-700 px-5 py-4 text-white flex items-center justify-between">
+        <h3 class="font-bold flex items-center gap-2 text-base"><i class="fa-solid fa-circle-question text-indigo-200"></i> Hướng dẫn sử dụng</h3>
+        <span id="tutStepCount" class="text-xs text-indigo-200 font-semibold"></span>
+      </div>
+      <div class="px-6 py-6 text-center min-h-[230px] flex flex-col items-center justify-center">
+        <div id="tutIcon" class="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl mb-4"></div>
+        <h4 id="tutTitle" class="font-bold text-slate-800 text-lg mb-2"></h4>
+        <p id="tutText" class="text-sm text-slate-600 leading-relaxed"></p>
+      </div>
+      <div id="tutDots" class="flex justify-center gap-1.5 pb-3"></div>
+      <div class="px-5 py-3 border-t border-slate-200 flex items-center justify-between gap-2">
+        <button id="tutSkip" onclick="closeTutorial()" class="px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition">Bỏ qua</button>
+        <div class="flex items-center gap-2">
+          <button id="tutPrev" onclick="tutorialStep(-1)" class="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-300 hover:bg-slate-100 rounded-lg transition">
+            <i class="fa-solid fa-arrow-left mr-1"></i> Quay lại
+          </button>
+          <button id="tutNext" onclick="tutorialStep(1)" class="px-5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="previewModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-150">
+      <div class="bg-indigo-700 px-5 py-4 text-white flex items-center justify-between">
+        <h3 class="font-bold flex items-center gap-2 text-base">
+          <i class="fa-solid fa-eye text-indigo-200"></i>
+          <span>Xem trước ảnh lịch làm việc</span>
+        </h3>
+        <button onclick="closePreviewModal()" class="text-indigo-200 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-4 flex-1 overflow-y-auto bg-slate-100 flex flex-col items-center justify-center">
+        <p class="text-xs text-slate-500 mb-2 font-medium">Kiểm tra thông tin bên dưới trước khi lưu về máy:</p>
+        <div class="border border-slate-300 rounded-lg shadow-sm bg-white p-2 overflow-hidden max-w-full">
+          <img id="previewImage" src="" alt="Lịch làm việc xem trước" class="max-w-full h-auto rounded object-contain max-h-[60vh] mx-auto" />
+        </div>
+      </div>
+
+      <div class="bg-white px-5 py-3 border-t border-slate-200 flex items-center justify-end gap-3">
+        <button onclick="closePreviewModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition border border-slate-300">
+          <i class="fa-solid fa-pen-to-square mr-1"></i> Chỉnh sửa lại
+        </button>
+        <button id="downloadBtn" class="px-5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+          <i class="fa-solid fa-download"></i> Tải ảnh về máy
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Time Modal -->
+  <div id="customTimeModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-150">
+      <div class="bg-indigo-700 px-5 py-4 text-white flex items-center justify-between">
+        <h3 class="font-bold flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-indigo-200"></i>
+          <span>Điều chỉnh & Nhập giờ làm việc</span>
+        </h3>
+        <button onclick="closeCustomModal()" class="text-indigo-200 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 text-center">
+        <div>
+          <span id="modalDateLabel" class="text-xs font-bold text-indigo-600 uppercase tracking-wide">Thứ 2 (13/10)</span>
+          <p class="text-xs text-slate-500 mt-0.5">Bạn có thể điều chỉnh trực tiếp các khoảng giờ bên dưới hoặc bấm nút thêm mới.</p>
+        </div>
+
+        <!-- Quick Presets -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Gợi ý chọn nhanh:</label>
+          <div class="flex flex-wrap gap-1.5 justify-center">
+            <button onclick="addQuickTimeSlot('08:00', '12:00')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded border border-slate-200 font-medium transition">+ 08:00–12:00</button>
+            <button onclick="addQuickTimeSlot('13:30', '17:30')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded border border-slate-200 font-medium transition">+ 13:30–17:30</button>
+            <button onclick="addQuickTimeSlot('18:00', '22:00')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded border border-slate-200 font-medium transition">+ 18:00–22:00</button>
+            <button onclick="addQuickTimeSlot('09:00', '15:00')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded border border-slate-200 font-medium transition">+ 09:00–15:00</button>
+          </div>
+        </div>
+
+        <!-- Time Slots Container -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-semibold text-slate-500 uppercase">Khung giờ hiện tại (Sửa trực tiếp):</label>
+            <button onclick="addTimeSlotRow()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded transition">
+              <i class="fa-solid fa-plus-circle"></i> Thêm khung giờ
+            </button>
+          </div>
+
+          <div id="timeSlotRows" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <!-- Dynamic Rows with Live Input Editing -->
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-50 px-5 py-3 border-t border-slate-100 flex items-center justify-end gap-2">
+        <button onclick="closeCustomModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition">Hủy</button>
+        <button onclick="saveCustomTime()" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+          <i class="fa-solid fa-floppy-disk"></i> Lưu thay đổi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SHIFT_OPTIONS = [
+      { id: 'sang', name: 'Sáng', time: '07:30–11:30', hours: 4, cls: 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' },
+      { id: 'chieu', name: 'Chiều', time: '13:00–17:00', hours: 4, cls: 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' },
+      { id: 'toi', name: 'Tối', time: '17:30–21:30', hours: 4, cls: 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200' },
+      { id: 'cangay', name: 'Cả ngày', time: '07:30–17:00', hours: 8, cls: 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200' },
+      { id: 'nghi', name: 'Nghỉ', time: '', hours: 0, cls: 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200' }
+    ];
+
+    // ===== Lưu trữ an toàn: Safari chế độ riêng tư / webview Zalo có thể chặn localStorage =====
+    const memoryStore = {};
+    const safeStore = {
+      get(key) {
+        try { const v = window.localStorage.getItem(key); if (v !== null) return v; } catch (e) {}
+        return Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : null;
+      },
+      set(key, value) {
+        memoryStore[key] = String(value);
+        try { window.localStorage.setItem(key, value); } catch (e) {}
+      }
+    };
+    function parseSavedSchedule() {
+      try { return JSON.parse(safeStore.get('speakar_schedule_data') || '{}') || {}; } catch (e) { return {}; }
+    }
+
+    let currentWeekOffset = 0;
+    let scheduleData = parseSavedSchedule();
+    let employeeName = safeStore.get('speakar_emp_name') || '';
+    let activeCustomKey = null;
+    let generatedImageDataUrl = null;
+
+    const nameInput = document.getElementById('employeeName');
+    nameInput.value = employeeName;
+
+    nameInput.addEventListener('input', (e) => {
+      employeeName = e.target.value;
+      safeStore.set('speakar_emp_name', employeeName);
+      nameInput.classList.remove('border-rose-500', 'ring-2', 'ring-rose-500');
+      triggerSaveStatus();
+    });
+
+    document.getElementById('prevWeek').addEventListener('click', () => { currentWeekOffset--; render(); });
+    document.getElementById('nextWeek').addEventListener('click', () => { currentWeekOffset++; render(); });
+
+    function resetToCurrentWeek() {
+      currentWeekOffset = 0;
+      render();
+    }
+
+    function getTodayIsoString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getWeekDays(offset = 0) {
+      const now = new Date();
+      const day = now.getDay();
+      const diffToMon = now.getDate() - day + (day === 0 ? -6 : 1) + (offset * 7);
+      
+      const monday = new Date(now.setDate(diffToMon));
+      const days = [];
+      const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+      const todayIso = getTodayIsoString();
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const dayNum = String(d.getDate()).padStart(2, '0');
+        const isoKey = `${year}-${month}-${dayNum}`;
+
+        days.push({
+          dayName: dayNames[i],
+          dateStr: dayNum + '/' + month,   // tự định dạng dd/mm, không phụ thuộc trình duyệt
+          isoKey: isoKey,
+          isToday: isoKey === todayIso
+        });
+      }
+      return days;
+    }
+
+    function getWeekKey(days) {
+      return `${days[0].isoKey}_${days[6].isoKey}`;
+    }
+
+    function triggerSaveStatus() {
+      const el = document.getElementById('saveStatus');
+      el.textContent = 'Đã lưu ✓';
+      el.className = 'text-emerald-400 font-semibold';
+    }
+
+    function toggleShift(isoKey, shiftId) {
+      const weekDays = getWeekDays(currentWeekOffset);
+      const weekKey = getWeekKey(weekDays);
+
+      if (!scheduleData[weekKey]) scheduleData[weekKey] = {};
+      if (!scheduleData[weekKey][isoKey]) scheduleData[weekKey][isoKey] = [];
+
+      let list = scheduleData[weekKey][isoKey];
+
+      if (shiftId === 'nghi') {
+        scheduleData[weekKey][isoKey] = ['nghi'];
+      } else {
+        list = list.filter(s => s !== 'nghi');
+        if (typeof shiftId === 'string' && list.includes(shiftId)) {
+          list = list.filter(s => s !== shiftId);
+        } else {
+          list.push(shiftId);
+        }
+        scheduleData[weekKey][isoKey] = list;
+      }
+
+      safeStore.set('speakar_schedule_data', JSON.stringify(scheduleData));
+      triggerSaveStatus();
+      render();
+    }
+
+    function openCustomModal(isoKey, dateLabel) {
+      activeCustomKey = isoKey;
+      document.getElementById('modalDateLabel').textContent = dateLabel;
+
+      const weekDays = getWeekDays(currentWeekOffset);
+      const weekKey = getWeekKey(weekDays);
+      const dayShifts = (scheduleData[weekKey] && scheduleData[weekKey][isoKey]) || [];
+
+      const customSlots = dayShifts.filter(s => typeof s === 'object' && s.type === 'custom');
+
+      const container = document.getElementById('timeSlotRows');
+      container.innerHTML = '';
+
+      if (customSlots.length > 0) {
+        customSlots.forEach(slot => addTimeSlotRow(slot.start, slot.end));
+      } else {
+        addTimeSlotRow('08:00', '12:00');
+      }
+
+      document.getElementById('customTimeModal').classList.remove('hidden');
+    }
+
+    function closeCustomModal() {
+      document.getElementById('customTimeModal').classList.add('hidden');
+      activeCustomKey = null;
+    }
+
+    function closePreviewModal() {
+      document.getElementById('previewModal').classList.add('hidden');
+    }
+
+    function addTimeSlotRow(start = '08:00', end = '12:00') {
+      const container = document.getElementById('timeSlotRows');
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs time-slot-row transition focus-within:border-indigo-400 focus-within:bg-indigo-50/20';
+
+      row.innerHTML = `
+        <span class="font-semibold text-slate-500 min-w-[20px]">Từ</span>
+        <input type="time" value="${start}" onchange="updateLiveRowDuration(this)" class="time-start border border-slate-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium text-slate-800 text-center" />
+        <span class="font-semibold text-slate-500 min-w-[28px]">đến</span>
+        <input type="time" value="${end}" onchange="updateLiveRowDuration(this)" class="time-end border border-slate-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium text-slate-800 text-center" />
+        <span class="row-duration text-[11px] font-bold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded ml-auto flex items-center justify-center">
+          ${calculateHoursDiff(start, end)}h
+        </span>
+        <button type="button" onclick="this.parentElement.remove(); checkEmptyRows();" class="text-slate-400 hover:text-rose-600 transition p-1" title="Xóa khung giờ này">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      `;
+
+      container.appendChild(row);
+    }
+
+    function addQuickTimeSlot(start, end) {
+      addTimeSlotRow(start, end);
+    }
+
+    function checkEmptyRows() {
+      const container = document.getElementById('timeSlotRows');
+      if (container.children.length === 0) {
+        addTimeSlotRow('08:00', '12:00');
+      }
+    }
+
+    function calculateHoursDiff(startStr, endStr) {
+      if (!startStr || !endStr) return 0;
+      const [h1, m1] = startStr.split(':').map(Number);
+      const [h2, m2] = endStr.split(':').map(Number);
+      let diff = (h2 + m2 / 60) - (h1 + m1 / 60);
+      return diff > 0 ? Math.round(diff * 10) / 10 : 0;
+    }
+
+    function updateLiveRowDuration(inputEl) {
+      const row = inputEl.closest('.time-slot-row');
+      const start = row.querySelector('.time-start').value;
+      const end = row.querySelector('.time-end').value;
+      const durationSpan = row.querySelector('.row-duration');
+      durationSpan.textContent = `${calculateHoursDiff(start, end)}h`;
+    }
+
+    function saveCustomTime() {
+      if (!activeCustomKey) return;
+
+      const weekDays = getWeekDays(currentWeekOffset);
+      const weekKey = getWeekKey(weekDays);
+
+      const rows = document.querySelectorAll('.time-slot-row');
+      const customSlots = [];
+
+      rows.forEach(row => {
+        const start = row.querySelector('.time-start').value;
+        const end = row.querySelector('.time-end').value;
+        if (start && end) {
+          const hours = calculateHoursDiff(start, end);
+          customSlots.push({
+            type: 'custom',
+            start,
+            end,
+            hours
+          });
+        }
+      });
+
+      if (!scheduleData[weekKey]) scheduleData[weekKey] = {};
+      let currentShifts = scheduleData[weekKey][activeCustomKey] || [];
+
+      currentShifts = currentShifts.filter(s => typeof s === 'string' && s !== 'nghi');
+      scheduleData[weekKey][activeCustomKey] = [...currentShifts, ...customSlots];
+
+      safeStore.set('speakar_schedule_data', JSON.stringify(scheduleData));
+      triggerSaveStatus();
+      closeCustomModal();
+      render();
+    }
+
+    function removeCustomSlot(isoKey, index) {
+      const weekDays = getWeekDays(currentWeekOffset);
+      const weekKey = getWeekKey(weekDays);
+
+      if (scheduleData[weekKey] && scheduleData[weekKey][isoKey]) {
+        scheduleData[weekKey][isoKey] = scheduleData[weekKey][isoKey].filter((s, i) => i !== index);
+        safeStore.set('speakar_schedule_data', JSON.stringify(scheduleData));
+        triggerSaveStatus();
+        render();
+      }
+    }
+
+    function applyQuickFill(shiftId) {
+      const weekDays = getWeekDays(currentWeekOffset);
+      const weekKey = getWeekKey(weekDays);
+      if (!scheduleData[weekKey]) scheduleData[weekKey] = {};
+
+      weekDays.forEach((day, index) => {
+        if (index < 6) { // T2 -> T7
+          scheduleData[weekKey][day.isoKey] = [shiftId];
+        } else { // CN
+          scheduleData[weekKey][day.isoKey] = ['nghi'];
+        }
+      });
+
+      safeStore.set('speakar_schedule_data', JSON.stringify(scheduleData));
+      triggerSaveStatus();
+      render();
+    }
+
+    function copyPreviousWeekSchedule() {
+      const currentDays = getWeekDays(currentWeekOffset);
+      const currentWeekKey = getWeekKey(currentDays);
+
+      const prevDays = getWeekDays(currentWeekOffset - 1);
+      const prevWeekKey = getWeekKey(prevDays);
+
+      const prevWeekData = scheduleData[prevWeekKey];
+
+      if (!prevWeekData || Object.keys(prevWeekData).length === 0) {
+        alert('Không tìm thấy dữ liệu ca làm việc của tuần trước để sao chép!');
+        return;
+      }
+
+      if (!scheduleData[currentWeekKey]) scheduleData[currentWeekKey] = {};
+
+      currentDays.forEach((day, index) => {
+        const prevDayKey = prevDays[index].isoKey;
+        if (prevWeekData[prevDayKey]) {
+          scheduleData[currentWeekKey][day.isoKey] = JSON.parse(JSON.stringify(prevWeekData[prevDayKey]));
+        }
+      });
+
+      safeStore.set('speakar_schedule_data', JSON.stringify(scheduleData));
+      triggerSaveStatus();
+      render();
+    }
+
+    function clearCurrentWeek() {
+      const weekDays = getWeekDays(currentWeekOffset);
+      const weekKey = getWeekKey(weekDays);
+      delete scheduleData[weekKey];
+      safeStore.set('speakar_schedule_data', JSON.stringify(scheduleData));
+      triggerSaveStatus();
+      render();
+    }
+
+    function render() {
+      const days = getWeekDays(currentWeekOffset);
+      const weekKey = getWeekKey(days);
+      const currentWeekData = scheduleData[weekKey] || {};
+
+      document.getElementById('currentWeekDisplay').textContent = 
+        `Tuần ${days[0].dateStr} – ${days[6].dateStr}`;
+
+      const gridEl = document.getElementById('daysGrid');
+      gridEl.innerHTML = '';
+
+      let totalShifts = 0;
+      let workDaysCount = 0;
+      let offDaysCount = 0;
+      let totalHours = 0;
+
+      days.forEach((day, idx) => {
+        const selectedShifts = currentWeekData[day.isoKey] || [];
+
+        const isNghi = selectedShifts.includes('nghi');
+        const hasWork = !isNghi && selectedShifts.length > 0;
+
+        if (isNghi) {
+          offDaysCount++;
+        } else if (hasWork) {
+          workDaysCount++;
+          totalShifts += selectedShifts.length;
+          selectedShifts.forEach(s => {
+            if (typeof s === 'string') {
+              const opt = SHIFT_OPTIONS.find(o => o.id === s);
+              if (opt) totalHours += opt.hours;
+            } else if (typeof s === 'object' && s.type === 'custom') {
+              totalHours += s.hours || 0;
+            }
+          });
+        }
+
+        const isWeekend = idx >= 5;
+
+        let cardBorderCls = 'border-slate-200 bg-white';
+        if (hasWork) {
+          cardBorderCls = 'border-indigo-500 bg-indigo-50/40 ring-2 ring-indigo-500/20 shadow-md';
+        } else if (isWeekend) {
+          cardBorderCls = 'border-amber-200 bg-white';
+        }
+
+        let headerBoxCls = 'bg-slate-100 text-slate-700';
+        if (hasWork) {
+          headerBoxCls = 'bg-indigo-600 text-white shadow-sm';
+        } else if (isWeekend) {
+          headerBoxCls = 'bg-amber-100 text-amber-800';
+        }
+
+        const dayCard = document.createElement('div');
+        dayCard.className = `rounded-xl border ${cardBorderCls} p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 relative transition`;
+
+        let buttonsHTML = SHIFT_OPTIONS.map(opt => {
+          const active = selectedShifts.includes(opt.id);
+          const activeCls = active ? 'ring-2 ring-indigo-600 font-bold scale-[1.02]' : 'opacity-80';
+          return `
+            <button 
+              onclick="toggleShift('${day.isoKey}', '${opt.id}')"
+              data-shift-btn="1" data-active="${active ? '1' : '0'}"
+              class="btn-shift px-3 py-1.5 rounded-lg text-xs border transition gap-1.5 ${opt.cls} ${activeCls}"
+            >
+              ${active ? '<i class="fa-solid fa-check"></i>' : ''}
+              <span>${opt.name}</span>
+            </button>
+          `;
+        }).join('');
+
+        const hasCustom = selectedShifts.some(s => typeof s === 'object' && s.type === 'custom');
+        const customActiveCls = hasCustom ? 'bg-cyan-600 text-white font-bold ring-2 ring-cyan-600' : 'bg-cyan-50 text-cyan-800 border-cyan-200 hover:bg-cyan-100';
+
+        buttonsHTML += `
+          <button 
+            onclick="openCustomModal('${day.isoKey}', '${day.dayName} (${day.dateStr})')"
+            data-shift-btn="1" data-active="${hasCustom ? '1' : '0'}"
+            class="btn-shift px-3 py-1.5 rounded-lg text-xs border transition gap-1.5 ${customActiveCls}"
+            title="Sửa hoặc thêm khung giờ tự chọn"
+          >
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>${hasCustom ? 'Chỉnh giờ tự nhập' : 'Tự nhập giờ'}</span>
+          </button>
+        `;
+
+        let customBadgesHTML = '';
+        selectedShifts.forEach((s, sIdx) => {
+          if (typeof s === 'object' && s.type === 'custom') {
+            customBadgesHTML += `
+              <span class="inline-flex items-center justify-center gap-1 px-2.5 py-1 bg-cyan-100 text-cyan-900 border border-cyan-300 rounded-md text-xs font-semibold shadow-sm">
+                <i class="fa-solid fa-clock-stop text-cyan-600"></i> ${s.start}–${s.end} (${s.hours}h)
+                <button onclick="openCustomModal('${day.isoKey}', '${day.dayName} (${day.dateStr})')" class="text-cyan-700 hover:text-indigo-700 ml-1.5 border-l border-cyan-300 pl-1.5" title="Chỉnh sửa giờ">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button onclick="removeCustomSlot('${day.isoKey}', ${sIdx})" class="text-cyan-600 hover:text-rose-600 ml-0.5" title="Xóa">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </span>
+            `;
+          }
+        });
+
+        const todayBadge = day.isToday ? `
+          <div class="mt-1 text-center">
+            <span class="day-badge inline-block bg-slate-200 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-300">
+              <i class="fa-solid fa-circle text-[6px] text-indigo-600 mr-0.5"></i> Hôm nay
+            </span>
+          </div>
+        ` : '';
+
+        const workStatusBadge = hasWork ? `
+          <div class="mt-1 text-center">
+            <span class="day-badge inline-block bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+              <i class="fa-solid fa-briefcase text-[9px] mr-0.5"></i> Có ca làm
+            </span>
+          </div>
+        ` : '';
+
+        dayCard.innerHTML = `
+          <div class="flex items-center justify-center space-x-3 min-w-[120px]">
+            <div class="day-header-box px-3 py-2 rounded-lg ${headerBoxCls} w-full">
+              <div class="text-xs uppercase font-bold text-center leading-snug">${day.dayName}</div>
+              <div class="text-sm font-extrabold text-center leading-snug mt-0.5">${day.dateStr}</div>
+              ${todayBadge}
+              ${workStatusBadge}
+            </div>
+          </div>
+          <div class="flex-1 space-y-2">
+            <div class="flex flex-wrap gap-2 items-center justify-center md:justify-start">
+              ${buttonsHTML}
+            </div>
+            ${customBadgesHTML ? `<div class="flex flex-wrap gap-1.5 pt-1 justify-center md:justify-start">${customBadgesHTML}</div>` : ''}
+          </div>
+        `;
+
+        gridEl.appendChild(dayCard);
+      });
+
+      document.getElementById('statTotalShifts').textContent = totalShifts;
+      document.getElementById('statWorkDays').textContent = `${workDaysCount}/7`;
+      document.getElementById('statOffDays').textContent = `${offDaysCount}/7`;
+      document.getElementById('statTotalHours').textContent = `${Math.round(totalHours * 10) / 10}h`;
+    }
+
+    // ===== Nhận diện môi trường =====
+    const UA = navigator.userAgent || '';
+    const IS_IOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const IS_ZALO = /Zalo/i.test(UA);
+    const IS_IN_APP = IS_ZALO || /FBAN|FBAV|FB_IAB|Instagram|Line\/|Messenger|; wv\)/i.test(UA);
+    const EXPORT_SCALE = (IS_IOS || IS_IN_APP) ? 1.5 : 2;   // iOS giới hạn kích thước canvas -> giảm scale cho an toàn
+    let generatedImageBlob = null;
+
+    function fontsReady() {
+      try { if (document.fonts && document.fonts.ready) return document.fonts.ready.catch(() => {}); } catch (e) {}
+      return Promise.resolve();
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const parts = dataUrl.split(',');
+      const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/png';
+      const bin = atob(parts[1]);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new Blob([arr], { type: mime });
+    }
+
+    function openSaveHelp() {
+      const isZalo = IS_ZALO;
+      document.getElementById('saveHelpTitle').textContent = 'Lưu ảnh về máy';
+      document.getElementById('saveHelpText').textContent = isZalo
+        ? 'Zalo không cho tải file trực tiếp. Hãy NHẤN GIỮ vào ảnh bên dưới rồi chọn "Lưu ảnh" (hoặc "Lưu về máy"). Nếu không thấy, bấm dấu ⋯ ở góc trên → "Mở bằng trình duyệt" rồi chụp lại.'
+        : 'Hãy NHẤN GIỮ vào ảnh bên dưới rồi chọn "Lưu vào Ảnh" / "Lưu ảnh".';
+      document.getElementById('saveHelpImage').src = generatedImageDataUrl;
+      document.getElementById('saveHelpModal').classList.remove('hidden');
+    }
+
+    function closeSaveHelp() {
+      document.getElementById('saveHelpModal').classList.add('hidden');
+      closePreviewModal();
+    }
+
+    async function saveGeneratedImage(fileName) {
+      if (!generatedImageDataUrl) return;
+      let blob = generatedImageBlob;
+      if (!blob) { try { blob = dataUrlToBlob(generatedImageDataUrl); } catch (e) { blob = null; } }
+
+      // 1) Điện thoại hỗ trợ chia sẻ file (iPhone Safari, Chrome Android...): mở bảng chia sẻ -> "Lưu ảnh" / gửi Zalo
+      if (blob && !IS_IN_APP && navigator.canShare && navigator.share) {
+        try {
+          const file = new File([blob], fileName, { type: 'image/png' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: 'Lịch làm việc' });
+            closePreviewModal();
+            return;
+          }
+        } catch (e) {
+          if (e && e.name === 'AbortError') return;   // người dùng tự đóng bảng chia sẻ
+        }
+      }
+
+      // 2) Máy tính / Android Chrome: tải file thông thường
+      if (!IS_IOS && !IS_IN_APP) {
+        try {
+          const url = blob ? URL.createObjectURL(blob) : generatedImageDataUrl;
+          const link = document.createElement('a');
+          link.download = fileName;
+          link.href = url;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          if (blob) setTimeout(() => URL.revokeObjectURL(url), 4000);
+          closePreviewModal();
+          return;
+        } catch (e) {}
+      }
+
+      // 3) iPhone không có Share API / webview Zalo: hiện ảnh to để nhấn giữ và lưu
+      openSaveHelp();
+    }
+
+    function previewAndExportImage() {
+      // RÀNG BUỘC: Kiểm tra họ và tên nhân viên trước khi chụp ảnh
+      const nameVal = nameInput.value.trim();
+      if (!nameVal) {
+        alert('Vui lòng nhập "Họ và tên nhân viên" trước khi xuất ảnh lịch làm việc!');
+        nameInput.focus();
+        nameInput.classList.add('border-rose-500', 'ring-2', 'ring-rose-500');
+        return;
+      }
+
+      const container = document.getElementById('scheduleContainer');
+      const originalClass = container.className;
+
+      fontsReady().then(() => html2canvas(container, {
+        scale: EXPORT_SCALE,
+        backgroundColor: '#f1f5f9',
+        useCORS: true,
+        windowWidth: 960,   // luôn chụp theo bố cục máy tính => ảnh giống nhau trên mọi thiết bị
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        onclone: (clonedDoc) => {
+          const clonedContainer = clonedDoc.getElementById('scheduleContainer');
+          if (clonedContainer) {
+            clonedContainer.style.margin = '0 auto';
+            clonedContainer.style.width = '100%';
+            clonedContainer.style.textAlign = 'center';
+
+            // ===== CĂN GIỮA CHỮ THEO CHIỀU DỌC (khắc phục html2canvas làm chữ tụt xuống) =====
+            // Cách làm: cố định chiều cao ô + line-height = chiều cao => chữ luôn nằm giữa.
+            // NUDGE_Y: số px đẩy chữ lên trên. Nếu chữ vẫn thấp -> tăng (2 -> 3); nếu bị cao quá -> giảm (2 -> 1 hoặc 0).
+            const NUDGE_Y = 2;
+
+            const centerText = (el, extraStyle, forceH) => {
+              if (!el) return;
+              const h = forceH || Math.round(el.getBoundingClientRect().height) || el.offsetHeight;
+              if (!h) return;
+              el.style.display = 'inline-block';
+              el.style.boxSizing = 'border-box';
+              el.style.height = h + 'px';
+              el.style.paddingTop = '0px';
+              el.style.paddingBottom = (NUDGE_Y * 2) + 'px';   // đẩy chữ lên một chút
+              el.style.lineHeight = (h - NUDGE_Y * 2) + 'px';  // chữ nằm giữa chiều cao còn lại
+              el.style.verticalAlign = 'middle';
+              el.style.textAlign = 'center';
+              el.style.whiteSpace = 'nowrap';
+              if (extraStyle) Object.assign(el.style, extraStyle);
+              // Icon Font Awesome nằm cùng dòng, canh giữa theo chữ
+              el.querySelectorAll('i').forEach(i => {
+                i.style.display = 'inline-block';
+                i.style.lineHeight = 'inherit';
+                i.style.verticalAlign = 'middle';
+              });
+              el.querySelectorAll('span').forEach(sp => {
+                sp.style.display = 'inline-block';
+                sp.style.lineHeight = 'inherit';
+                sp.style.verticalAlign = 'middle';
+              });
+            };
+
+            // Đo kích thước TRƯỚC khi sửa style (đọc hết rồi mới ghi, tránh đo sai)
+            const btnEls = Array.from(clonedDoc.querySelectorAll('#scheduleContainer button, #scheduleContainer .btn-shift'))
+              .filter(b => !b.closest('#employeeNameWrapper'));
+            // Nút nằm trong badge giờ tự nhập (nút sửa/xóa nhỏ) thì bỏ qua, xử lý theo badge
+            const topBtns = btnEls.filter(b => !b.closest('span.inline-flex'));
+            const chipEls = Array.from(clonedDoc.querySelectorAll('#scheduleContainer span.inline-flex'));
+            const badgeEls = Array.from(clonedDoc.querySelectorAll('.day-badge'));
+            const nameEl = clonedDoc.getElementById('employeeName');
+
+            // 1. Ô HỌ VÀ TÊN: thay <input> bằng <div> có chiều cao cố định
+            const clonedNameWrapper = clonedDoc.getElementById('employeeNameWrapper');
+            if (clonedNameWrapper) {
+              const safeName = nameVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              const nameH = 56; // ô họ tên phóng to
+              clonedNameWrapper.innerHTML = `
+                <div style="width:100%; height:${nameH}px; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:0.5rem; padding:0 12px ${NUDGE_Y * 2}px 12px; background-color:#ffffff; font-weight:800; color:#1e293b; text-align:center; font-size:22px; line-height:${nameH - 2 - NUDGE_Y * 2}px; white-space:nowrap; overflow:hidden;">
+                  ${safeName}
+                </div>
+              `;
+            }
+
+            // 2. CÁC NÚT: Sáng/Chiều/Tối/Cả ngày/Nghỉ/Tự nhập giờ/Giống tuần trước/Tuần hiện tại...
+            topBtns.forEach(btn => {
+              if (btn.hasAttribute('data-shift-btn')) return; // nút ca xử lý riêng ở bước 2b
+              centerText(btn);
+            });
+
+            // 2b. CÁC NÚT CA TRONG TỪNG NGÀY: ca không chọn -> ẩn; ca được chọn -> ô lớn, chia 2 cột bên phải
+            // Quy tắc xếp ô:
+            //   1 ca  -> nằm ở cột PHẢI
+            //   2 ca  -> trái | phải
+            //   3 ca  -> ca đầu ở cột trái (cao bằng 2 hàng, căn giữa), 2 ca còn lại xếp dọc ở cột phải
+            //   4+ ca -> lưới 2 cột
+            const SHIFT_BTN_H = 38;    // chiều cao mỗi ô ca (px)
+            const SHIFT_BTN_FONT = 16; // cỡ chữ ô ca (px)
+            const SHIFT_GAP = 8;       // khoảng cách giữa các ô (px)
+
+            clonedDoc.querySelectorAll('#daysGrid > div').forEach(card => {
+              // Thẻ ngày: trái = ô Thứ/Ngày, phải = lưới các ca (luôn xếp ngang, căn giữa dọc)
+              card.style.display = 'flex';
+              card.style.flexDirection = 'row';
+              card.style.alignItems = 'center';
+              card.style.gap = '16px';
+
+              const right = card.children[1];
+              if (!right) return;
+              right.style.flex = '1 1 0%';
+              right.style.width = '100%';
+              right.style.minWidth = '0';
+
+              const row = right.children[0];
+              if (!row) return;
+
+              const btns = Array.from(row.querySelectorAll('[data-shift-btn]'));
+              const active = btns.filter(b => b.getAttribute('data-active') === '1');
+              btns.forEach(b => { if (b.getAttribute('data-active') !== '1') b.style.display = 'none'; });
+
+              row.style.display = 'grid';
+              row.style.gridTemplateColumns = '1fr 1fr';
+              row.style.gap = SHIFT_GAP + 'px';
+              row.style.padding = '0';
+              row.style.width = '100%';
+
+              active.forEach((btn, idx) => {
+                btn.style.opacity = '1';
+                btn.style.transform = 'none';
+                btn.style.margin = '0';
+                centerText(btn, {
+                  display: 'block',
+                  width: '100%',
+                  fontSize: SHIFT_BTN_FONT + 'px',
+                  fontWeight: '700',
+                  padding: '0 12px ' + (NUDGE_Y * 2) + 'px 12px',
+                  borderRadius: '10px'
+                }, SHIFT_BTN_H);
+                btn.querySelectorAll('i').forEach(i => { i.style.fontSize = '14px'; i.style.marginRight = '6px'; });
+
+                const n = active.length;
+                if (n === 1) {
+                  btn.style.gridColumn = '2';
+                } else if (n === 2) {
+                  btn.style.gridColumn = String(idx + 1);
+                } else if (n === 3) {
+                  if (idx === 0) {
+                    btn.style.gridColumn = '1';
+                    btn.style.gridRow = '1 / span 2';
+                    btn.style.alignSelf = 'center';
+                  } else {
+                    btn.style.gridColumn = '2';
+                    btn.style.gridRow = String(idx);
+                  }
+                }
+              });
+            });
+
+            // Hàng badge giờ tự nhập: nằm dưới lưới ca, không thụt
+            clonedDoc.querySelectorAll('#daysGrid .pt-1').forEach(r => {
+              r.style.justifyContent = 'flex-end';
+              r.style.paddingLeft = '0';
+            });
+
+            // 3. CÁC CHIP "Các ca cố định" và badge giờ tự nhập
+            chipEls.forEach(chip => centerText(chip));
+
+            // 4. Ô THỨ/NGÀY & BADGE "CÓ CA LÀM", "HÔM NAY"
+            clonedDoc.querySelectorAll('.day-header-box').forEach(box => {
+              box.style.display = 'block';
+              box.style.textAlign = 'center';
+            });
+            badgeEls.forEach(badge => centerText(badge, { padding: '0 8px ' + (NUDGE_Y * 2) + 'px 8px', marginTop: '4px' }));
+          }
+        }
+      })).then(canvas => {
+        container.className = originalClass;
+        generatedImageDataUrl = canvas.toDataURL('image/png');
+        generatedImageBlob = null;
+        if (canvas.toBlob) canvas.toBlob(b => { generatedImageBlob = b; }, 'image/png');
+
+        // Hiển thị Modal Xem Trước Ảnh
+        const previewImg = document.getElementById('previewImage');
+        previewImg.src = generatedImageDataUrl;
+
+        const downloadBtn = document.getElementById('downloadBtn');
+        downloadBtn.onclick = function() {
+          saveGeneratedImage(`lich-lam-viec-${nameVal.replace(/\s+/g, '-').toLowerCase()}.png`);
+        };
+
+        document.getElementById('previewModal').classList.remove('hidden');
+
+      }).catch(err => {
+        container.className = originalClass;
+        console.error('Lỗi khi xuất ảnh:', err);
+        alert('Không thể tạo ảnh trên trình duyệt này. Bạn hãy thử mở trang bằng Safari hoặc Chrome rồi chụp lại nhé.');
+      });
+    }
+
+    // ===== HƯỚNG DẪN SỬ DỤNG =====
+    const TUTORIAL_KEY = 'speakar_tutorial_seen';
+    const TUTORIAL_STEPS = [
+      { icon: 'fa-hand', title: 'Chào mừng bạn!', text: 'Trang này giúp bạn đăng ký lịch làm việc theo tuần và xuất thành ảnh để gửi quản lý. Làm theo vài bước ngắn dưới đây nhé.' },
+      { icon: 'fa-user', title: '1. Nhập họ và tên', text: 'Điền họ và tên của bạn ở ô "Họ và tên nhân viên". Đây là thông tin bắt buộc trước khi chụp ảnh.' },
+      { icon: 'fa-calendar-week', title: '2. Chọn tuần', text: 'Dùng mũi tên trái/phải để chuyển giữa các tuần. Bấm "Tuần hiện tại" để quay về tuần đang diễn ra.' },
+      { icon: 'fa-hand-pointer', title: '3. Chọn ca làm', text: 'Ở mỗi ngày, bấm vào ca bạn muốn: Sáng, Chiều, Tối, Cả ngày hoặc Nghỉ. Bấm lại lần nữa để bỏ chọn. Bạn có thể chọn nhiều ca trong cùng một ngày.' },
+      { icon: 'fa-bolt', title: 'Điền nhanh', text: 'Dùng các nút "Điền nhanh" để áp dụng một ca cho cả tuần (T2 – T7), hoặc "Giống tuần trước" để sao chép lịch của tuần trước.' },
+      { icon: 'fa-pen-to-square', title: '4. Tự nhập giờ', text: 'Nếu giờ làm không trùng ca cố định, bấm "Tự nhập giờ" để nhập khung giờ riêng cho ngày đó.' },
+      { icon: 'fa-camera', title: '5. Chụp ảnh lịch', text: 'Bấm "Xem trước & Chụp ảnh" ở thanh dưới cùng, kiểm tra lại thông tin rồi bấm "Tải ảnh về máy". Lịch của bạn được tự động lưu trên trình duyệt.' },
+      { icon: 'fa-circle-question', title: 'Cần xem lại?', text: 'Bấm nút "Hướng dẫn" ở góc trên bên phải bất cứ lúc nào để xem lại phần hướng dẫn này.' }
+    ];
+    let tutorialIdx = 0;
+
+    function renderTutorial() {
+      const st = TUTORIAL_STEPS[tutorialIdx];
+      const last = tutorialIdx === TUTORIAL_STEPS.length - 1;
+      document.getElementById('tutIcon').innerHTML = '<i class="fa-solid ' + st.icon + '"></i>';
+      document.getElementById('tutTitle').textContent = st.title;
+      document.getElementById('tutText').textContent = st.text;
+      document.getElementById('tutStepCount').textContent = (tutorialIdx + 1) + '/' + TUTORIAL_STEPS.length;
+      document.getElementById('tutDots').innerHTML = TUTORIAL_STEPS.map((_, i) =>
+        '<span class="w-2 h-2 rounded-full ' + (i === tutorialIdx ? 'bg-indigo-600' : 'bg-slate-300') + '"></span>').join('');
+      document.getElementById('tutPrev').style.visibility = tutorialIdx === 0 ? 'hidden' : 'visible';
+      document.getElementById('tutSkip').style.visibility = last ? 'hidden' : 'visible';
+      document.getElementById('tutNext').innerHTML = last ? '<i class="fa-solid fa-check mr-1"></i> Đã hiểu' : 'Tiếp theo <i class="fa-solid fa-arrow-right ml-1"></i>';
+    }
+
+    function openTutorial() {
+      tutorialIdx = 0;
+      renderTutorial();
+      document.getElementById('tutorialModal').classList.remove('hidden');
+    }
+
+    function closeTutorial() {
+      document.getElementById('tutorialModal').classList.add('hidden');
+      safeStore.set(TUTORIAL_KEY, '1');
+    }
+
+    function tutorialStep(dir) {
+      const next = tutorialIdx + dir;
+      if (next >= TUTORIAL_STEPS.length) { closeTutorial(); return; }
+      if (next < 0) return;
+      tutorialIdx = next;
+      renderTutorial();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const m = document.getElementById('tutorialModal');
+      if (m.classList.contains('hidden')) return;
+      if (e.key === 'Escape') closeTutorial();
+      else if (e.key === 'ArrowRight') tutorialStep(1);
+      else if (e.key === 'ArrowLeft') tutorialStep(-1);
+    });
+
+    // Tự động hiện hướng dẫn lần đầu vào web (người dùng bỏ qua rồi sẽ không tự hiện lại)
+    const tutorialSeen = safeStore.get(TUTORIAL_KEY);
+    if (!tutorialSeen) openTutorial();
+
+    // Initial render
+    render();
+  </script>
+</body>
+</html>
